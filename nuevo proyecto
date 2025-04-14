@@ -1,1 +1,52 @@
+# Instalar yfinance si es necesario
+!pip install yfinance
 
+# Importar librerías
+import pandas as pd
+import yfinance as yf
+import matplotlib.pyplot as plt
+import requests
+from bs4 import BeautifulSoup
+
+# Obtener datos de acciones de Tesla
+tesla = yf.Ticker("TSLA")
+tesla_data = tesla.history(period="max")
+tesla_data.reset_index(inplace=True)
+
+# Obtener datos de ingresos de Tesla desde Macrotrends con headers
+url = "https://www.macrotrends.net/stocks/charts/TSLA/tesla/revenue"
+headers = {"User-Agent": "Mozilla/5.0"}
+html_data = requests.get(url, headers=headers).text
+soup = BeautifulSoup(html_data, "html.parser")
+
+# Encontrar la tabla correcta
+tables = soup.find_all("table")
+tesla_revenue = pd.read_html(str(tables[1]))[0]
+tesla_revenue.dropna(inplace=True)
+tesla_revenue.columns = ["Date", "Revenue"]
+tesla_revenue.reset_index(drop=True, inplace=True)
+tesla_revenue["Revenue"] = tesla_revenue["Revenue"].replace({'\\$': '', ',': ''}, regex=True).astype(float)
+
+# Función para graficar
+def make_graph(stock_data, revenue_data, stock, title):
+    fig, ax = plt.subplots(2, 1, figsize=(14, 10))
+
+    # Stock price plot
+    ax[0].plot(stock_data['Date'], stock_data['Close'])
+    ax[0].set_title(f"{stock} Stock Price Over Time")
+    ax[0].set_xlabel("Date")
+    ax[0].set_ylabel("Stock Price (USD)")
+
+    # Revenue bar chart
+    ax[1].bar(revenue_data['Date'], revenue_data['Revenue'])
+    ax[1].set_title(f"{stock} Quarterly Revenue")
+    ax[1].set_xlabel("Date")
+    ax[1].set_ylabel("Revenue (USD)")
+    ax[1].tick_params(axis='x', rotation=45)
+
+    fig.suptitle(title, fontsize=16)
+    plt.tight_layout(rect=[0, 0, 1, 0.97])
+    plt.show()
+
+# Ejecutar el gráfico
+make_graph(tesla_data, tesla_revenue, 'Tesla', 'Tesla Stock and Revenue Dashboard')
